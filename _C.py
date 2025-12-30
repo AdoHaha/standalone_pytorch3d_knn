@@ -8,13 +8,23 @@ _EXT = None
 
 def _build_extension():
     this_dir = os.path.dirname(__file__)
-    repo_root = os.path.abspath(os.path.join(this_dir, os.pardir))
-    csrc_dir = os.path.join(repo_root, "pytorch3d", "csrc")
+    
+    # Check for local csrc first (standalone mode)
+    local_csrc = os.path.join(this_dir, "csrc")
+    if os.path.exists(local_csrc):
+        csrc_dir = local_csrc
+        sources = [
+            os.path.join(this_dir, "knn_ext.cpp"),
+            os.path.join(csrc_dir, "knn", "knn_cpu.cpp"),
+        ]
+    else:
+        repo_root = os.path.abspath(os.path.join(this_dir, os.pardir))
+        csrc_dir = os.path.join(repo_root, "pytorch3d", "csrc")
+        sources = [
+            os.path.join(this_dir, "knn_ext.cpp"),
+            os.path.join(csrc_dir, "knn", "knn_cpu.cpp"),
+        ]
 
-    sources = [
-        os.path.join(this_dir, "knn_ext.cpp"),
-        os.path.join(csrc_dir, "knn", "knn_cpu.cpp"),
-    ]
     extra_include_paths = [csrc_dir]
 
     force_cpu = os.getenv("P3D_KNN_FORCE_CPU", "0") == "1"
@@ -47,7 +57,10 @@ def _build_extension():
 
 
 try:
-    _EXT = _build_extension()
+    try:
+        from . import p3d_knn_ext as _EXT
+    except ImportError:
+        _EXT = _build_extension()
 except Exception as exc:
     raise RuntimeError(
         "Failed to build the standalone KNN extension. "
